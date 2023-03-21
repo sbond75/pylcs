@@ -92,6 +92,49 @@ vector<vector<int>> lcs_matrix_(const string &str1, const string &str2) {
     return dp;
 }
 
+template <typename T>
+struct Array {
+  Array(size_t size) : m_array(new T[size]), m_size(size) {}
+  ~Array() {
+    delete[] m_array;
+  }
+  T* m_array;
+  size_t m_size;
+}
+
+// Trying to optimize this more:
+Array<int> lcs_flat_matrix_(const string &str1, const string &str2) {
+    if (str1 == "" || str2 == "")
+        return vector<int>();
+    vector<string> s1 = utf8_split(str1);
+    vector<string> s2 = utf8_split(str2);
+    int m = s1.size();
+    int n = s2.size();
+    vector<int, my_allocator> dp((m + 1) * (n + 1));
+    int i, j;
+    // printf("%d %d\n", m, n);
+
+    for (i = 0; i <= m; i++) {
+        dp[i][0] = 0;
+    }
+    for (j = 0; j <= n; j++) {
+        dp[0][j] = 0;
+    }
+    for (i = 1; i <= m; i++) {
+        for (j = 1; j <= n; j++) {
+            if (s1[i - 1] == s2[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                if (dp[i - 1][j] >= dp[i][j - 1])
+                    dp[i][j] = dp[i - 1][j];
+                else
+                    dp[i][j] = dp[i][j-1];
+            }
+        }
+    }
+    return *(vector<int>*)&dp;
+}
+
 
 // 最长公共子串（连续）
 int lcs2_length_(const string &str1, const string &str2) {
@@ -135,6 +178,10 @@ int lcs(const string &str1, const string &str2){
 
 vector<vector<int>> lcs_matrix(const string &str1, const string &str2){
     return lcs_matrix_(str1, str2);
+}
+
+vector<int> lcs_flat_matrix(const string &str1, const string &str2){
+    return lcs_flat_matrix_(str1, str2);
 }
 
 
@@ -221,6 +268,10 @@ PYBIND11_MODULE(pylcs, m) {
 
     m.def("lcs_matrix", &lcs_matrix, R"pbdoc(
         Longest common subsequence as a matrix
+    )pbdoc");
+
+    m.def("lcs_flat_matrix", &lcs_matrix, R"pbdoc(
+        Longest common subsequence as a flattened matrix
     )pbdoc");
 
     m.def("lcs2", &lcs2, R"pbdoc(
