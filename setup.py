@@ -2,6 +2,7 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 import sys
 import setuptools
+import os
 
 
 class get_pybind_include(object):
@@ -101,4 +102,7 @@ setup(
     install_requires=['pybind11>=2.2'],
     cmdclass={'build_ext': BuildExt},
     zip_safe=False,
+    include_dirs=[
+        os.path.join(os.getcwd(), "eigen")
+    ]
 )
