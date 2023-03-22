@@ -1,6 +1,5 @@
 ﻿#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/eigen.h> // https://pybind11.readthedocs.io/en/stable/advanced/cast/eigen.html
 #include <vector>
 #include <string>
 #include <iostream>
@@ -8,8 +7,7 @@
 #include <sstream>
 using namespace std;
 
-#include <Eigen/Sparse>
-typedef Eigen::SparseMatrix<int> SpMat; // declares a column-major sparse matrix type of double
+#include "longestCommonSubsequence.hpp"
 
 
 vector<string> utf8_split(const string &str){
@@ -96,39 +94,10 @@ vector<vector<int>> lcs_matrix_(const string &str1, const string &str2) {
     return dp;
 }
 
-// Trying to optimize this more:
-SpMat lcs_sparse_matrix_(const string &str1, const string &str2) {
-    // http://eigen.tuxfamily.org/dox/group__TutorialSparse.html
-
-    if (str1 == "" || str2 == "")
-        return {};
-    vector<string> s1 = utf8_split(str1);
-    vector<string> s2 = utf8_split(str2);
-    int m = s1.size();
-    int n = s2.size();
-    SpMat dp(m + 1, n + 1);
-    int i, j;
-    // printf("%d %d\n", m, n);
-
-    // for (i = 0; i <= m; i++) {
-    //     dp[i][0] = 0;
-    // }
-    // for (j = 0; j <= n; j++) {
-    //     dp[0][j] = 0;
-    // }
-    for (i = 1; i <= m; i++) {
-        for (j = 1; j <= n; j++) {
-            if (s1[i - 1] == s2[j - 1]) {
-                dp.insert(i, j) = dp.coeff(i - 1, j - 1) + 1;
-            } else {
-                if (dp.coeff(i - 1, j) >= dp.coeff(i, j - 1))
-                    dp.insert(i, j) = dp.coeff(i - 1, j);
-                else
-                    dp.insert(i, j) = dp.coeff(i, j-1);
-            }
-        }
-    }
-    return dp;
+string lcs_string(const string &str1, const string &str2) {
+  string retval;
+  lcs3::lcs(str1, str2, retval);
+  return retval;
 }
 
 
@@ -174,10 +143,6 @@ int lcs(const string &str1, const string &str2){
 
 vector<vector<int>> lcs_matrix(const string &str1, const string &str2){
     return lcs_matrix_(str1, str2);
-}
-
-SpMat lcs_sparse_matrix(const string &str1, const string &str2){
-    return lcs_sparse_matrix_(str1, str2);
 }
 
 
@@ -266,8 +231,8 @@ PYBIND11_MODULE(pylcs, m) {
         Longest common subsequence as a matrix
     )pbdoc");
 
-    m.def("lcs_sparse_matrix", &lcs_sparse_matrix, R"pbdoc(
-        Longest common subsequence as an Eigen sparse matrix
+    m.def("lcs_string", &lcs_string, R"pbdoc(
+        Longest common subsequence as a string
     )pbdoc");
 
     m.def("lcs2", &lcs2, R"pbdoc(
