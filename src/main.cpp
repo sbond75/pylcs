@@ -94,10 +94,11 @@ vector<vector<int>> lcs_matrix_(const string &str1, const string &str2) {
     return dp;
 }
 
-string lcs_string(const string &str1, const string &str2) {
+std::pair<string, std::vector<bool> /*true if a corresponding index in `str1` is in the LCS*/> lcs_string(const string &str1, const string &str2) {
   string retval;
-  lcs3::lcs(str1, str2, retval);
-  return retval;
+  lcs3::members xs_in_lcs;
+  lcs3::lcs(str1, str2, retval, xs_in_lcs);
+  return {retval, xs_in_lcs};
 }
 
 

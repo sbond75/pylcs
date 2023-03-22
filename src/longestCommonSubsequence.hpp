@@ -142,9 +142,9 @@ calculate_lcs(it xo, it xlo, it xhi, it ylo, it yhi, members & xs_in_lcs)
 
 // Calculate an LCS of (xs, ys), returning the result in an_lcs. 
 template <typename seq>
-void lcs(seq const & xs, seq const & ys, seq & an_lcs)
+void lcs(seq const & xs, seq const & ys, seq & an_lcs, members& xs_in_lcs)
 {
-    members xs_in_lcs(xs.size(), false);
+    xs_in_lcs = members(xs.size(), false);
     calculate_lcs(xs.begin(), xs.begin(), xs.end(),
                   ys.begin(), ys.end(), xs_in_lcs);
     set_lcs(xs.begin(), xs_in_lcs, back_inserter(an_lcs));
