@@ -1,0 +1,31 @@
+!include <win32.mak>
+# nmake -f Makefile.msvc
+#
+# Debug options
+#
+cflags=$(cflags) /MDd /GZ /Gm /ZI /Od /Isrc /I$(EXPAT)\Source\lib /D_DEBUG /DWIN32 /D_WINDOWS /DUNICODE /D_UNICODE /D_USRDLL /DLIBMBA_EXPORTS /DUSE_WCHAR /DMSGNO
+lflags=/nologo /dll /debug /pdbtype:sept
+
+# Production options
+#
+#cflags=$(cflags) /Isrc /I$(EXPAT)\Source\lib /DWIN32 /D_WINDOWS /DUNICODE /D_UNICODE /D_USRDLL /DLIBMBA_EXPORTS /DUSE_WCHAR /DMSGNO
+#lflags=/nologo /dll /incremental:no
+
+OBJS=src\cfg.obj src\hashmap.obj src\hexdump.obj src\linkedlist.obj src\mbs.obj src\msgno.obj src\stack.obj src\pool.obj src\varray.obj src\wcwidth.obj src\csv.obj src\path.obj src\text.obj src\eval.obj src\allocator.obj src\suba.obj src\bitset.obj src\time.obj src\misc.obj
+
+
+libmba.dll: $(OBJS)
+	$(link) $(lflags) /out:libmba.dll $(OBJS)
+
+libmba.lib: $(OBJS)
+	$(implib) /out:libmba.lib $(OBJS)
+
+.c.obj:
+	$(cc) $(cflags) /Fo$@ $*.c
+
+install:
+	copy libmba.dll c:\winnt\system32\libmba.dll
+
+clean:
+	del libmba.dll libmba.lib libmba.exp libmba.ilk libmba.pdb vc60.idb vc60.pdb $(OBJS)
+

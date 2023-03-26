@@ -4,6 +4,10 @@ import sys
 import setuptools
 import os
 
+# Config #
+debugMode=False
+# #
+
 
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
@@ -19,6 +23,27 @@ class get_pybind_include(object):
         return pybind11.get_include(self.user)
 
 
+# https://stackoverflow.com/questions/4597228/how-to-statically-link-a-library-when-compiling-a-python-module-extension
+static_libraries = ['libmba'] # Static libs
+static_lib_dir = os.path.join(os.getcwd(), "libmba-0.8.10", "build", "Release")
+libraries = [] # Dynamic libs
+library_dirs = []
+
+if sys.platform == 'win32':
+    libraries.extend(static_libraries)
+    library_dirs.append(static_lib_dir)
+    extra_objects = []
+else: # POSIX
+    extra_objects = ['{}/lib{}.a'.format(static_lib_dir, l) for l in static_libraries]
+
+#libs = {'libraries': libraries} if len(libraries) > 0 else {}
+
+extra_link_args = {
+    'msvc': ['/LIBPATH:' + x for x in [static_lib_dir]] + [x + '.lib' for x in static_libraries],
+    'unix': ['-L' + x for x in [static_lib_dir]] + ['-l' + x.removeprefix('lib') for x in static_libraries],
+}
+
+
 ext_modules = [
     Extension(
         'pylcs',
@@ -28,7 +53,17 @@ ext_modules = [
             get_pybind_include(),
             get_pybind_include(user=True)
         ],
-        language='c++'
+        language='c++',
+    extra_compile_args = ([
+        "/Od", "/Zi" # build for debugging and produce pdb file
+    ] if sys.platform == 'win32' else ['-O0' '-g3']) if debugMode else [
+        "/Ox" if sys.platform == 'win32' else '-O3' # HACK: should be checking compiler instead
+    ],
+    extra_link_args=extra_link_args['msvc'] if sys.platform == 'win32' else extra_link_args['unix'] # HACK: should be checking compiler instead        # https://stackoverflow.com/questions/49256000/setting-compile-arguments-in-setup-py-file-or-linker-arguments-lrt
+    #**libs, # https://stackoverflow.com/questions/5710391/converting-python-dict-to-kwargs
+    # library_dirs=library_dirs,
+    # extra_objects=extra_objects
+
     ),
 ]
 
@@ -65,8 +100,8 @@ def cpp_flag(compiler):
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
-        'msvc': ['/Ox', '/EHsc'],
-        'unix': ['-O3'],
+        'msvc': ['/EHsc'],
+        'unix': []
     }
 
     if sys.platform == 'darwin':
@@ -89,6 +124,16 @@ class BuildExt(build_ext):
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+# Prepare dependencies
+import subprocess
+try:
+    subprocess.run(['bash', 'buildDependencies.sh', os.getcwd()], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+except subprocess.CalledProcessError as exc:
+    print("Status : FAIL", exc.returncode, exc.output)
+    exit(exc.returncode)
+
+
+
 setup(
     name='pylcs',
     version='0.0.6',
@@ -103,6 +148,7 @@ setup(
     cmdclass={'build_ext': BuildExt},
     zip_safe=False,
     include_dirs=[
-        os.path.join(os.getcwd(), "eigen")
-    ]
+        os.path.join(os.getcwd(), "eigen"),
+        os.path.join(os.getcwd(), "libmba-0.8.10", "src")
+    ],
 )

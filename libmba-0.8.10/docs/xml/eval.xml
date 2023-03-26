@@ -1,0 +1,108 @@
+<interface name="eval" short="evaluate simple arithmetic expressions">
+
+<comments>
+Copyright 2003 Michael B. Allen &lt;mba2000 ioplex.com&gt;
+</comments>
+
+<include>mba/eval.h</include>
+
+<title>Eval</title>
+<desc>
+	The <def>eval</def>(3m) module will evaluate simple arithmentic expressions consisting of integers, symbols for which the provided <ident>symlook_fn</ident> returns an integer, and any of the operators <tt>|&amp;^+-*/()</tt>. Operator precedence is roughly the same as the C language; '(' and ')' are higher than '*' and '/' which are higher than '+' and '-' which are higher than '^', '&amp;', and '|'. Prefixing integer tokens with '-' to indicate negative values is currently not supported.
+
+<example id="symlook">
+<title>A Symbol Lookup Table</title>
+<desc>
+The following example illustrates how to use the <ident>eval</ident> module with a symbol table to evaluate a simple arithmetic expression from the commandline.
+<pre>
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;mba/eval.h&gt;
+#include &lt;mba/msgno.h&gt;
+
+struct {
+	const tchar *name;
+	const unsigned long val;
+} symtab[] = {
+    { _T("N"), 3 },
+    { _T("MAXVALUES"), 0xFFFF },
+    { _T("whatever"), 100 }
+};
+
+int
+symbol_lookup(const tchar *name, unsigned long *val, void *context)
+{   
+	int i;
+
+	for (i = 0; symtab[i].name; i++) {
+		if (tcscmp(symtab[i].name, name) == 0) {
+			*val = symtab[i].val;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+int
+main(int argc, char *argv[])
+{
+	unsigned long result;
+	struct eval *eval = eval_new(&amp;symbol_lookup, NULL);
+
+	if (eval_expression(eval, argv[1], argv[1] + strlen(argv[1]), &amp;result) == -1) {
+		MSG("");
+		return EXIT_FAILURE;
+	}
+
+	printf("%s = %ld\n", argv[1], result);
+
+	return EXIT_SUCCESS;
+}
+output:
+$ ./eval '(5 + 3) * N'
+(5 + 3) * N = 24
+</pre>
+Large tables should be generated with a program that sorts the identifiers so the the <tt>symlook_fn</tt> can perform a binary search (see end of <tt>wcwidth.c</tt>).
+</desc>
+</example>
+</desc>
+
+<group>
+<title>The Eval Functions</title>
+<meth name="new">
+	<pre>struct eval *eval_new(symlook_fn symlook, void *context);</pre>
+	<param name="symlook"/>
+	<desc>
+The <ident>eval_new</ident> function creates and returns a new context object for evaluating expressions. The <tt>symlook</tt> parameter is defined as follows:
+<pre>
+typedef int (*symlook_fn)(const tchar *name, unsigned long *val, void *context);
+</pre>
+The <tt>symlook_fn</tt> function will be called to resolve any non-numeric symbols and should place the value identified by <tt>name</tt> into <tt>val</tt> and return 0. If the symbol is not found -1 should be returned.
+<p/>
+The <ident>eval_new</ident> function can be used repeatedly to evaluate any number of expressions before being destroyed with the <ident>eval_del</ident> function. The <tt>context</tt> parameter is passed uninterpreted to the <tt>symlook_fn</tt> (e.g. a hashmap perhaps).
+	</desc>
+</meth>
+<meth name="del">
+	<pre>void eval_del(void *eval);</pre>
+	<param name="eval"/>
+	<desc>
+The <ident>eval_del</ident> function deletes the context object <tt>eval</tt> freeing any memory allocated with <tt>eval_new</tt> or during the evaluation of expressions.
+	</desc>
+</meth>
+<meth name="eval_expression">
+	<pre>int eval_expression(struct eval *eval, const tchar *expr, const tchar *elim, unsigned long *result);</pre>
+	<param name="eval"/>
+	<param name="expr"/>
+	<param name="elim"/>
+	<param name="result"/>
+	<desc>
+The <ident>eval_expression</ident> function evaluates an infix expression like <tt>'(5 + 3) * N'</tt>, converts it into a stack of tokens in postfix orientation, and reduces it with a simple translation matrix to produce a single integer value. The <tt>eval</tt> parameter is a context object created with <tt>eval_new</tt>. The expression at <tt>expr</tt> is evaluated up to, but not including, the memory at <tt>elim</tt>, and writes the resulting value in the memory at <tt>result</tt>.
+	</desc>
+	<ret>
+The <ident>eval_expression</ident> function returns 0 if the expression was successfully reduced or -1 if an error occured in which case <tt>errno</tt> will be set appropriately (e.g. <tt>ENOENT</tt> if the <tt>symlook_fn</tt> could not resolve a symbol).
+	</ret>
+</meth>
+</group>
+
+</interface>
