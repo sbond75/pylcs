@@ -5,7 +5,7 @@ import setuptools
 import os
 
 # Config #
-debugMode=True
+debugMode=False
 # #
 
 
@@ -54,11 +54,12 @@ ext_modules = [
             get_pybind_include(user=True)
         ],
         language='c++',
-    extra_compile_args = ([
+    extra_compile_args = (([
         "/Od", "/Zi" # build for debugging and produce pdb file
-    ] if sys.platform == 'win32' else ['-O0' '-g3']) if debugMode else [
+        , "/DLCS_DEBUG"
+    ] if sys.platform == 'win32' else ['-O0', '-g3', "-DLCS_DEBUG"]) if debugMode else [
         "/Ox" if sys.platform == 'win32' else '-O3' # HACK: should be checking compiler instead
-    ],
+    ])[0],
     extra_link_args=extra_link_args['msvc'] if sys.platform == 'win32' else extra_link_args['unix'] # HACK: should be checking compiler instead        # https://stackoverflow.com/questions/49256000/setting-compile-arguments-in-setup-py-file-or-linker-arguments-lrt
     #**libs, # https://stackoverflow.com/questions/5710391/converting-python-dict-to-kwargs
     # library_dirs=library_dirs,

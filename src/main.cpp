@@ -1,6 +1,11 @@
 ﻿// To compile for debugging: mark file dirty by adding and removing a char, then set `debugMode` to true in setup.py of pylcs, then run `pip install --global-option build --global-option --debug pylcs/` and it will install the debug build. (Based on https://stackoverflow.com/questions/30153936/how-to-compile-python-extension-with-debug-info-using-pip )
 
-#define PYBIND11_DEBUG
+#ifdef LCS_DEBUG
+#define PYBIND11_DEBUG // (used for include of pybind11 below)
+#define DEBUG_PRINT(...) fprintf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...)
+#endif
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <vector>
@@ -129,7 +134,12 @@ public:
     m_varray(nullptr),
     m_length(0)
   {}
-  
+
+  VArrayWrapper(varray* varray_, size_t length) :
+    m_varray(varray_),
+    m_length(length)
+  {}
+
   VArrayWrapper(const VArrayWrapper&& other) :
     m_varray(other.m_varray),
     m_length(other.m_length)
@@ -139,11 +149,6 @@ public:
   }
 
   VArrayWrapper(const VArrayWrapper& other) = delete;
-
-  VArrayWrapper(varray* varray_, size_t length) :
-    m_varray(varray_),
-    m_length(length)
-  {}
 
   ~VArrayWrapper() {
     // FIXME: Memory leak currently. Uncomment the below and change; this crashes for some reason (double-free?)
@@ -182,16 +187,17 @@ public:
     //varray_iterate(m_varray, &m_iter); // (Note: varray_iterate() supports nullptr arguments)
   }
 
-  T* next() {
+  T next() {
     if (m_index >= m_length) {
-      printf("m_index >= m_length\n");
-      return nullptr;
+      DEBUG_PRINT(stderr, "m_index >= m_length\n");
+      throw py::stop_iteration();
+      //return nullptr;
     }
 
     //return *(T*)varray_next(m_varray, &m_iter);
-    printf("m_index: %p out of length %p\n", m_index, m_length);
-    T* retval = (T*)varray_get(m_varray, m_index++);
-    printf("ptr: %p\n", retval);
+    DEBUG_PRINT(stderr, "m_index: %p out of length %p\n", m_index, m_length);
+    T retval = *(T*)varray_get(m_varray, m_index++);
+    DEBUG_PRINT(stderr, "ptr: %p\n", retval);
     return retval;
   }
 
@@ -202,8 +208,6 @@ protected:
   //iter_t m_iter;
 };
 
-static string str1_;
-static string str2_;
 VArrayWrapper diff(const string &str1, const string &str2) {
   // Based on https://github.com/innerout/libmba/blob/master/examples/diff/strdiff.c
   int n, m, d;
@@ -215,20 +219,20 @@ VArrayWrapper diff(const string &str1, const string &str2) {
 
   // printf("Got this far\n");
   // return {};
-  str1_ = str1;
-  str2_ = str2;
-  if ((d = diff(str1_.c_str(), 0, n, str2_.c_str(), 0, m, NULL, NULL, NULL, 0, ses, &sn, NULL)) == -1) {
+  if ((d = diff(str1.c_str(), 0, n, str2.c_str(), 0, m, NULL, NULL, NULL, 0, ses, &sn, NULL)) == -1) {
     // Error occurred:
-    printf("Error from diff() call\n");
+    DEBUG_PRINT(stderr, "Error from diff() call\n");
     MNO(errno); //MMNO(errno);
     //return EXIT_FAILURE;
     //throw errno;
     return {};
   }
 
-  // Iteration demo:
-  // for (i = 0; i < sn; i++) {
-  //   struct diff_edit *e = varray_get(ses, i);
+  // // Iteration demo:
+  // const char* a = str1.c_str();
+  // const char* b = str2.c_str();
+  // for (size_t i = 0; i < sn; i++) {
+  //   struct diff_edit *e = (diff_edit*)varray_get(ses, i);
 
   //   switch (e->op) {
   //   case DIFF_MATCH:
@@ -376,10 +380,10 @@ PYBIND11_MODULE(pylcs, m) {
         .def("__len__", &VArrayWrapper::size)
 	.def("__iter__", [](VArrayWrapper& vec) -> VArrayIterator<diff_edit> {
 	    return {vec};
-        }, py::keep_alive<0, 1>());
+        });
 
     py::class_<VArrayIterator<diff_edit>>(m, "VArrayIterator<diff_edit>")
-        .def("__iter__", [](VArrayIterator<diff_edit> &it) -> VArrayIterator<diff_edit> { return it; })
+        .def("__iter__", [](VArrayIterator<diff_edit>& it) -> VArrayIterator<diff_edit> { return it; })
         .def("__next__", &VArrayIterator<diff_edit>::next);
 
     // https://github.com/pybind/pybind11/blob/master/tests/test_enum.cpp
