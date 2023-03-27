@@ -175,20 +175,35 @@ template <typename T>
 class VArrayIterator {
 public:
   VArrayIterator(VArrayWrapper& varrayWrapper) :
-    m_varray(varrayWrapper.getVArray())
+    m_varray(varrayWrapper.getVArray()),
+    m_index(0),
+    m_length(varrayWrapper.size())
   {
-    varray_iterate(m_varray, &m_iter); // (Note: varray_iterate() supports nullptr arguments)
+    //varray_iterate(m_varray, &m_iter); // (Note: varray_iterate() supports nullptr arguments)
   }
 
   T* next() {
-    return (T*)varray_next(m_varray, &m_iter);
+    if (m_index >= m_length) {
+      printf("m_index >= m_length\n");
+      return nullptr;
+    }
+
+    //return *(T*)varray_next(m_varray, &m_iter);
+    printf("m_index: %p out of length %p\n", m_index, m_length);
+    T* retval = (T*)varray_get(m_varray, m_index++);
+    printf("ptr: %p\n", retval);
+    return retval;
   }
 
 protected:
+  unsigned int m_index;
+  size_t m_length;
   varray* m_varray;
-  iter_t m_iter;
+  //iter_t m_iter;
 };
 
+static string str1_;
+static string str2_;
 VArrayWrapper diff(const string &str1, const string &str2) {
   // Based on https://github.com/innerout/libmba/blob/master/examples/diff/strdiff.c
   int n, m, d;
@@ -200,8 +215,11 @@ VArrayWrapper diff(const string &str1, const string &str2) {
 
   // printf("Got this far\n");
   // return {};
-  if ((d = diff(str1.c_str(), 0, n, str2.c_str(), 0, m, NULL, NULL, NULL, 0, ses, &sn, NULL)) == -1) {
+  str1_ = str1;
+  str2_ = str2;
+  if ((d = diff(str1_.c_str(), 0, n, str2_.c_str(), 0, m, NULL, NULL, NULL, 0, ses, &sn, NULL)) == -1) {
     // Error occurred:
+    printf("Error from diff() call\n");
     MNO(errno); //MMNO(errno);
     //return EXIT_FAILURE;
     //throw errno;
@@ -361,7 +379,7 @@ PYBIND11_MODULE(pylcs, m) {
         }, py::keep_alive<0, 1>());
 
     py::class_<VArrayIterator<diff_edit>>(m, "VArrayIterator<diff_edit>")
-        .def("__iter__", [](VArrayIterator<diff_edit> &it) -> VArrayIterator<diff_edit>& { return it; })
+        .def("__iter__", [](VArrayIterator<diff_edit> &it) -> VArrayIterator<diff_edit> { return it; })
         .def("__next__", &VArrayIterator<diff_edit>::next);
 
     // https://github.com/pybind/pybind11/blob/master/tests/test_enum.cpp

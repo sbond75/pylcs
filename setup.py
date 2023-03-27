@@ -5,7 +5,7 @@ import setuptools
 import os
 
 # Config #
-debugMode=False
+debugMode=True
 # #
 
 
